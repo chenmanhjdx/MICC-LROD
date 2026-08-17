@@ -5,46 +5,8 @@ _base_ = [
     '../_base_/default_runtime.py'
 ]
 
-# 修改模型配置
+# ===== Model configuration with CDIP Miner and SIPB Optimizer =====
 model = dict(
-    type='TwoStageDetector',
-    backbone=dict(
-        type='ResNet',
-        depth=50,
-        num_stages=4,
-        out_indices=(0, 1, 2, 3),
-        frozen_stages=1,
-        norm_cfg=dict(type='BN', requires_grad=True),
-        norm_eval=True,
-        style='pytorch',
-        init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet50')
-    ),
-    neck=dict(
-        type='FPN',
-        in_channels=[256, 512, 1024, 2048],
-        out_channels=256,
-        num_outs=5
-    ),
-    rpn_head=dict(
-        type='RPNHead',
-        in_channels=256,
-        feat_channels=256,
-        anchor_generator=dict(
-            type='AnchorGenerator',
-            scales=[8],
-            ratios=[0.5, 1.0, 2.0],
-            strides=[4, 8, 16, 32, 64]
-        ),
-        bbox_coder=dict(
-            type='DeltaXYWHBBoxCoder',
-            target_means=[.0, .0, .0, .0],
-            target_stds=[1.0, 1.0, 1.0, 1.0]
-        ),
-        loss_cls=dict(
-            type='CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0
-        ),
-        loss_bbox=dict(type='L1Loss', loss_weight=1.0)
-    ),
     roi_head=dict(
         type='StandardRoIHead',
         bbox_roi_extractor=dict(
@@ -70,7 +32,7 @@ model = dict(
             ),
             loss_bbox=dict(type='L1Loss', loss_weight=1.0)
         ),
-        # 新增: CDIP Miner配置
+        # ===== CDIP Miner configuration =====
         cdip_miner=dict(
             type='CDIPMiner',
             in_channels=256,
@@ -81,7 +43,8 @@ model = dict(
                 featmap_strides=[4, 8, 16, 32]
             ),
             detail_branch_channels=256,
-            gabor_orientations=8,
+            gabor_orientations=8,  # As specified in the paper
+            num_classes=80,
             train_cfg=dict(
                 assigner=dict(
                     type='MaxIoUAssigner',
@@ -100,7 +63,7 @@ model = dict(
                 )
             )
         ),
-        # 新增: SIPB Optimizer配置
+        # ===== SIPB Optimizer configuration =====
         sipb_optimizer=dict(
             type='SIPBOptimizer',
             in_channels=256,
@@ -110,7 +73,7 @@ model = dict(
                 out_channels=256,
                 featmap_strides=[4, 8, 16, 32]
             ),
-            relaxation_factors=[2.0, 4.0],
+            relaxation_factors=[2.0, 4.0],  # e1, e2 from the paper
             se_ratio=16
         ),
         use_alternating_cascade=True
@@ -177,7 +140,7 @@ model = dict(
     )
 )
 
-# 数据配置
+# ===== Data configuration =====
 data = dict(
     samples_per_gpu=2,
     workers_per_gpu=2,
@@ -244,7 +207,7 @@ data = dict(
     )
 )
 
-# 优化器配置
+# ===== Optimizer configuration =====
 optimizer = dict(type='SGD', lr=0.0025, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=None)
 lr_config = dict(
@@ -256,7 +219,7 @@ lr_config = dict(
 )
 runner = dict(type='EpochBasedRunner', max_epochs=12)
 
-# 日志配置
+# ===== Logging configuration =====
 log_config = dict(
     interval=50,
     hooks=[
@@ -265,7 +228,6 @@ log_config = dict(
     ]
 )
 
-# 其他配置
 checkpoint_config = dict(interval=1)
 evaluation = dict(interval=1, metric='bbox')
 work_dir = './work_dirs/micc_lrod_r50_fpn_1x'
